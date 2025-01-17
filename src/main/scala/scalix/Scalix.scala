@@ -5,11 +5,7 @@ import org.json4s.jackson.JsonMethods.*
 import org.json4s.DefaultFormats.*
 import scalix.services.{FileService, RequestService}
 
-import java.io.{File, PrintWriter}
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
-import scala.io.Source
-import scala.util.Using
+import java.io.File
 
 object Scalix extends App :
   implicit val formats: Formats = DefaultFormats
@@ -20,8 +16,8 @@ object Scalix extends App :
   private case class FullName(firstName: String, lastName: String)
 
   //println(findActorId("Tom", "Cruise"))
-  println(findActorMovies(500))
-  //println(findMovieDirector(11873))
+//  println(findActorMovies(400))
+  println(findMovieDirector(5204))
   //println(collaboration(FullName("Tom", "Cruise"), FullName("Tom", "Hanks")))
 
   private def findActorId(name: String, surname: String): Option[Int] =
@@ -35,6 +31,14 @@ object Scalix extends App :
   private def findActorMovies(actorId: Int): Set[(Int, String)] = {
     val url = s"https://api.themoviedb.org/3/person/$actorId/movie_credits?api_key=$key"
     val path = s"./data/actor$actorId.json"
+    val contents: String = getFromCache(url, path)
+
+    val json = parse(contents)
+    val results = json \ "cast"
+    results.extract[List[Movie]].map(m => (m.id, m.title)).toSet
+  }
+
+  private def getFromCache(url: String, path: String) = {
     val file = new File(path)
 
     val contents = if (file.exists()) {
@@ -43,22 +47,19 @@ object Scalix extends App :
       }
     } else {
       val fetchedContents = RequestService.fetchFromUrl(url).getOrElse {
-        throw new RuntimeException(s"Erreur lors de la récupération des données pour l'acteur $actorId")
+        throw new RuntimeException(s"Erreur lors de la récupération des données")
       }
       file.createNewFile()
       FileService.writeToFile(path, fetchedContents)
       fetchedContents
     }
-
-    val json = parse(contents)
-    val results = json \ "cast"
-    results.extract[List[Movie]].map(m => (m.id, m.title)).toSet
+    contents
   }
 
   private def findMovieDirector(movieId: Int): Option[(Int, String)] =
     val url = s"https://api.themoviedb.org/3/movie/$movieId/credits?api_key=$key"
-    val source = scala.io.Source.fromURL(url)
-    val contents = source.mkString
+    val path = s"./data/movie$movieId.json"
+    val contents: String = getFromCache(url, path)
     val json = parse(contents)
     val results = json \ "crew"
     results.extract[List[Person]].find(_.known_for_department == "Directing").map(p => (p.id, p.name))
