@@ -6,27 +6,38 @@ import org.json4s.DefaultFormats.*
 import scalix.services.{FileService, RequestService}
 
 import java.io.File
+import scala.collection.mutable
 
 object Scalix extends App :
   implicit val formats: Formats = DefaultFormats
   val key = "87037d6d53baf2c98bb355aae0343d1f"
+  private val ActorCache: mutable.Map[(String, String), Int] = mutable.Map.empty
 
   private case class Person(id: Int, name: String, known_for_department: String)
   private case class Movie(id: Int, title: String)
   private case class FullName(firstName: String, lastName: String)
 
   //println(findActorId("Tom", "Cruise"))
-//  println(findActorMovies(400))
-  println(findMovieDirector(5204))
+  //println(findActorMovies(400))
+  //println(findMovieDirector(5204))
   //println(collaboration(FullName("Tom", "Cruise"), FullName("Tom", "Hanks")))
 
   private def findActorId(name: String, surname: String): Option[Int] =
-    val url = s"https://api.themoviedb.org/3/search/person?query=$name%20$surname&api_key=$key"
-    val source = scala.io.Source.fromURL(url)
-    val contents = source.mkString
-    val json = parse(contents)
-    val results = json \ "results"
-    results.extract[List[Person]].headOption.map(_.id)
+    if (ActorCache.contains((name, surname))) {
+      Some(ActorCache((name, surname)))
+    } else {
+      val url = s"https://api.themoviedb.org/3/search/person?query=$name%20$surname&api_key=$key"
+      val source = scala.io.Source.fromURL(url)
+      try {
+        val contents = source.mkString
+        val json = parse(contents)
+        val results = json \ "results"
+        ActorCache((name, surname)) = results.extract[List[Person]].head.id
+        results.extract[List[Person]].headOption.map(_.id)
+      } finally {
+        source.close()
+      }
+    }
 
   private def findActorMovies(actorId: Int): Set[(Int, String)] = {
     val url = s"https://api.themoviedb.org/3/person/$actorId/movie_credits?api_key=$key"
