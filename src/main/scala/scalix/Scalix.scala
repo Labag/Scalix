@@ -10,7 +10,7 @@ import scala.collection.mutable
 
 object Scalix extends App :
   implicit val formats: Formats = DefaultFormats
-  val key = "87037d6d53baf2c98bb355aae0343d1f"
+  val key = "API_KEY_HERE"
   private val ActorCache: mutable.Map[(String, String), Int] = mutable.Map.empty
   private val ActorMoviesCache: mutable.Map[Int, Set[(Int, String)]] = mutable.Map.empty
   private val MovieDirectorCache: mutable.Map[Int, Set[(Int, String)]] = mutable.Map.empty
